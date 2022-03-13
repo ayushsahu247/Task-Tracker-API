@@ -15,10 +15,22 @@ class User(AbstractUser):
 
 
 class Task(models.Model):
+    ASSIGNED="Assigned"
+    IN_PROGRESS="In Progress"
+    UNDER_REVIEW="Under Review"
+    DONE="Done"
+    status_choices = [
+        (ASSIGNED, "Assigned"),
+        (IN_PROGRESS, "In Progress"),
+        (UNDER_REVIEW, "Under Revieww"),
+        (DONE, "Done")
+    ]
+
     name=models.CharField(max_length=250)
     description=models.TextField()
     team_leader=models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="teamLeaderOf")
     members=models.ManyToManyField(User, related_name="membersOf")
+    status=models.CharField(choices=status_choices, default=ASSIGNED, max_length=20)
 
 class Team(models.Model):
     name=models.CharField(max_length=100)

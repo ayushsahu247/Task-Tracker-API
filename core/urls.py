@@ -1,6 +1,7 @@
 from django.urls import path 
-from core.views import CreateTeam
+from core.views import CreateTeam, GetAuthenticated
 
 urlpatterns = [
-    path('', CreateTeam.as_view())
+    path('team', CreateTeam.as_view()),
+    path('get-auth', GetAuthenticated.as_view())
 ]
