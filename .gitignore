@@ -1,4 +1,4 @@
-core/__pycache__
-task_tracker/__pycache
+core/__pycache__/*
+task_tracker/__pycache__/*
 celerybeat-schedule
 celerybeat.pid

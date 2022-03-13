@@ -3,7 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 # Create your models here.
 class User(AbstractUser):
-    MEMBER = "TL"
+    MEMBER = "TM"
     LEADER = "TL"
     type_choices = [
         (MEMBER, "Member"),
@@ -33,6 +33,7 @@ class Task(models.Model):
     status=models.CharField(choices=status_choices, default=ASSIGNED, max_length=20)
     start_date=models.DateField(default=timezone.now)
     end_date=models.DateField(default=timezone.now)
+    priority=models.CharField(max_length=100, default="low")
 
 class Team(models.Model):
     name=models.CharField(max_length=100)

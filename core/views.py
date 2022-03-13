@@ -7,6 +7,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from core.serializers import TeamSerializer
 from core.models import Team, User, Task, TaskUpdates
 import jwt, datetime
+from core.tasks import send_mail
 
 class CreateTeam(APIView):
     def post(self, request):
@@ -21,7 +22,7 @@ class CreateTeam(APIView):
                 raise AuthenticationFailed('Unauthenticated')
             
             payload = jwt.decode(token, 'secret', algorithms=['HS256'])
-            if payload('type')=='TL':
+            if payload['type']=='TL':
                 team = Team.objects.create(name=request.data["name"], team_leader=user)
                 member_ids = request.data["members"].split(",")
                 for id in member_ids:
@@ -41,14 +42,14 @@ class GetAvailabilityOfTeamMembers(APIView):
             raise AuthenticationFailed('Unauthenticated')
         
         payload = jwt.decode(token, 'secret', algorithms=['HS256'])
-        if payload('type')=='TL':
+        if payload['type']=='TL':
+            data=[]
             if team_id:
                 team = Team.objects.get(id=int(team_id))
                 members = team.members.all()
-                availability_dict = {}
                 for member in members:
-                    availability_dict[member.id]=member.availability
-                return Response(availability_dict)
+                    data.append({member.username: member.availability})
+                return Response({"success":True, "data":data})
         return Response({"success": False,"msg":"Authentication failed"})
 
 
@@ -61,15 +62,16 @@ class CreateTask(APIView):
             raise AuthenticationFailed('Unauthenticated')
         
         payload = jwt.decode(token, 'secret', algorithms=['HS256'])
-        if payload('type')=='TL':
+        if payload['type']=='TL':
             task_name=request.data.get("task_name")
             team_leader = user
             priority = request.data.get("priority")
             start_date = request.data.get("start_date")
             end_date = request.data.get("end_date")
-            if not task_name and priority and start_date and end_date:
-                return Response({"success":False, "msg":"Incorrect Parameters"})
-            task = Task.objects.create(name=task_name, team_leader=user, priority=priority, start_date=start_date, end_date=end_date)
+            description = request.data.get("description")
+            if not task_name and priority and start_date and end_date and member_ids and description:
+                return Response({"success":False, "msg":"Incorrect/Insufficient Parameters"})
+            task = Task.objects.create(name=task_name, team_leader=user, priority=priority, description=description,start_date=start_date, end_date=end_date)
             member_ids = request.data["members"].split(",")
             for id in member_ids:
                 member = User.objects.get(int(id))
@@ -80,9 +82,7 @@ class CreateTask(APIView):
             return Response({"success":True, "msg":"Task created successfully"})
         return Response({"success":False, "msg":"Forbidden"})
 
-
-class UpdateTask(APIView):
-    def post(self, request):
+    def patch(self, request):
         user = User.objects.first()
         token = request.COOKIES.get('jwt')
         if not token:
@@ -91,8 +91,10 @@ class UpdateTask(APIView):
         payload = jwt.decode(token, 'secret', algorithms=['HS256'])
         type = payload["type"]
         task = Task.objects.get(id=request.data.get("task_id"))
-
-        update_title = request.data["update_title"]
+        
+        update_title = request.data.get("update_title")
+        if not update_title:
+            return Response({"success":False, "msg":"update_title field is required"})
 
         fields = [f.name for f in Task._meta.get_fields()]
         fields.remove("status")
@@ -124,11 +126,26 @@ class UpdateTask(APIView):
                 return Response({"success":True, "msg":"Task Updated"})
         return Response({"success":False, "msg":"Forbidden"})
 
-
-
 class GetStatusChangeReport(APIView):
     def get(self, request):
-        pass
+        user = User.objects.first()
+        token = request.COOKIES.get('jwt')
+        if not token:
+            raise AuthenticationFailed('Unauthenticated')
+        
+        payload = jwt.decode(token, 'secret', algorithms=['HS256'])
+        type = payload["type"]
+        if type=="TL":
+            date = request.data["date"]
+            task_updates = TaskUpdates.objects.filter(updated_on=date)
+            content = ''
+            subject = 'Update'
+            for update in task_updates:
+                if update.task.team_leader==user:
+                    content='\n {} - {}'.format(update.update_title, update.task.id)
+                    send_mail(user, subject, content)
+            return Response({"success":True})
+        return Response({"success":False, "msg":"Authentication Failed"})
 
 class GetAuthenticated(APIView):
     def get(self, request):
