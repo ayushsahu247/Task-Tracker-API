@@ -1,2 +1,4 @@
 core/__pycache__
 task_tracker/__pycache
+celerybeat-schedule
+celerybeat.pid

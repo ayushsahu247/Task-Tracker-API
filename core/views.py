@@ -1,4 +1,3 @@
-from datetime import datetime
 import imp
 from django.shortcuts import render
 from rest_framework.decorators import APIView
@@ -6,7 +5,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.exceptions import AuthenticationFailed
 from core.serializers import TeamSerializer
-from core.models import Team, User
+from core.models import Team, User, Task, TaskUpdates
 import jwt, datetime
 
 class CreateTeam(APIView):
@@ -52,13 +51,80 @@ class GetAvailabilityOfTeamMembers(APIView):
                 return Response(availability_dict)
         return Response({"success": False,"msg":"Authentication failed"})
 
+
+
 class CreateTask(APIView):
     def post(self, request):
-        pass
+        user = User.objects.first()
+        token = request.COOKIES.get('jwt')
+        if not token:
+            raise AuthenticationFailed('Unauthenticated')
+        
+        payload = jwt.decode(token, 'secret', algorithms=['HS256'])
+        if payload('type')=='TL':
+            task_name=request.data.get("task_name")
+            team_leader = user
+            priority = request.data.get("priority")
+            start_date = request.data.get("start_date")
+            end_date = request.data.get("end_date")
+            if not task_name and priority and start_date and end_date:
+                return Response({"success":False, "msg":"Incorrect Parameters"})
+            task = Task.objects.create(name=task_name, team_leader=user, priority=priority, start_date=start_date, end_date=end_date)
+            member_ids = request.data["members"].split(",")
+            for id in member_ids:
+                member = User.objects.get(int(id))
+                if member.availability:
+                    task.members.add(member)
+                else:
+                    return Response({"success":False, "msg":"Team Member is not available"})
+            return Response({"success":True, "msg":"Task created successfully"})
+        return Response({"success":False, "msg":"Forbidden"})
+
 
 class UpdateTask(APIView):
     def post(self, request):
-        pass
+        user = User.objects.first()
+        token = request.COOKIES.get('jwt')
+        if not token:
+            raise AuthenticationFailed('Unauthenticated')
+        
+        payload = jwt.decode(token, 'secret', algorithms=['HS256'])
+        type = payload["type"]
+        task = Task.objects.get(id=request.data.get("task_id"))
+
+        update_title = request.data["update_title"]
+
+        fields = [f.name for f in Task._meta.get_fields()]
+        fields.remove("status")
+        if user in task.members.all():
+            if user.user_type!="TL":
+                for field in field:
+                    if field in request.data:
+                        return Response({"success":False, "msg":"Forbidden"})
+                if "status" in request.data:
+                    task.status=request.data["status"]
+                    TaskUpdates.objects.create(update_title=update_title, modifier=user)
+                    return Response({"success":True, "msg":"Task Updated"})
+            else:
+                # full privileges
+                if "status" in request.data:
+                    task.status=request.data["status"]
+                if "name" in request.data:
+                    task.name=request.data["name"]
+                if "description" in request.data:
+                    task.description=request.data["description"]
+                if "team_leader_id" in request.data:
+                    task.team_leader=User.objects.get(id=int(request.data["team_leader_id"]))
+                if "start_date" in request.data:
+                    task.start_date=request.data["start_date"]
+                if "end_date" in request.data:
+                    task.end_date=request.data["end_date"]
+                
+                TaskUpdates.objects.create(update_title=update_title, modifier=user)
+                return Response({"success":True, "msg":"Task Updated"})
+        return Response({"success":False, "msg":"Forbidden"})
+
+
 
 class GetStatusChangeReport(APIView):
     def get(self, request):
