@@ -26,7 +26,7 @@ class Task(models.Model):
         (DONE, "Done")
     ]
 
-    name=models.CharField(max_length=250)
+    name=models.CharField(max_length=250, default="Default Name")
     description=models.TextField()
     team_leader=models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="teamLeaderOf")
     members=models.ManyToManyField(User, related_name="membersOf")

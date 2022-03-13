@@ -24,6 +24,13 @@ Install postman (to send api requests)
 Since register, login facilities havent been built, I'm using a dummy user in all apis.
 Create a few users (Try to make some of them leaders, by default they will be Members)
 
+Now run these three commands on separate terminals
+python manage.py runserver
+celery -A task_tracker worker -l INFO
+celery -A task_tracker beat
+
+and you are good to go.
+
 Endpoints
 1. GetAuthenticated (GET /get-auth)
 This api generates the jwt which will be used for authentication in all other apis.

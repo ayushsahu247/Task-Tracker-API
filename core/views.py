@@ -69,12 +69,13 @@ class CreateTask(APIView):
             start_date = request.data.get("start_date")
             end_date = request.data.get("end_date")
             description = request.data.get("description")
+            member_ids = request.data["members"].split(",")
             if not task_name and priority and start_date and end_date and member_ids and description:
                 return Response({"success":False, "msg":"Incorrect/Insufficient Parameters"})
-            task = Task.objects.create(name=task_name, team_leader=user, priority=priority, description=description,start_date=start_date, end_date=end_date)
-            member_ids = request.data["members"].split(",")
+            task = Task.objects.create(name=task_name, team_leader=team_leader, priority=priority, description=description,start_date=start_date, end_date=end_date)
             for id in member_ids:
-                member = User.objects.get(int(id))
+                print(id)
+                member = User.objects.get(id=int(id))
                 if member.availability:
                     task.members.add(member)
                 else:
